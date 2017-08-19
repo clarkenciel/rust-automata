@@ -1,13 +1,21 @@
+extern crate rand;
+
 use std::thread::sleep;
 use std::time::{Duration};
+use rand::Rng;
 
 fn main() {
-    let mut automaton = Automata::new(80, rule_30);
-    for _ in 0..10_000 {
-        sleep(Duration::from_millis(250));
+    let mut automaton = Rule90::with_width(80);
+    automaton.randomize();
+    loop {
+        sleep(Duration::from_millis(100));
         println!("{}", automaton.render());
-        automaton = automaton.evolve();
+        automaton.update();        
     }
+}
+
+trait Render {
+    fn render(&self) -> String;
 }
 
 enum CellState {
@@ -15,32 +23,56 @@ enum CellState {
     Dead
 }
 
-impl CellState {
-    fn render(&self) -> &'static str {
+impl Render for CellState {
+    fn render(&self) -> String {
         match self {
             &CellState::Alive => "●",
-            &CellState::Dead => "○"
+            &CellState::Dead => " "
+        }.to_owned()
+    }
+}
+
+trait Cell {
+    fn is_alive(&self) -> bool;
+    fn convert<B>(&self) -> B where B: FromCell {
+        B::from_cell(self)
+    }
+}
+
+trait FromCell {
+    fn from_cell<T: ?Sized>(cell: &T) -> Self where T: Cell;
+}
+
+struct BasicCell {
+    state: CellState,
+}
+
+impl BasicCell {
+    fn dead() -> BasicCell {
+        BasicCell { state: CellState::Dead }
+    }
+
+    fn alive() -> BasicCell {
+        BasicCell { state: CellState::Alive }
+    }
+}
+
+impl FromCell for BasicCell {
+    fn from_cell<T: ?Sized>(cell: &T) -> Self where T: Cell {
+        match cell.is_alive() {
+            true => Self::alive(),
+            false => Self::dead()
         }
     }
 }
 
-struct Cell {
-    state: CellState,
+impl Render for BasicCell {
+    fn render(&self) -> String {
+        self.state.render().to_owned()
+    }
 }
 
-impl Cell {
-    fn dead() -> Cell {
-        Cell { state: CellState::Dead }
-    }
-
-    fn alive() -> Cell {
-        Cell { state: CellState::Alive }
-    }
-    
-    fn render(&self) -> &'static str {
-        self.state.render()
-    }
-
+impl Cell for BasicCell {    
     fn is_alive(&self) -> bool {
         match self.state {
             CellState::Alive => true,
@@ -49,102 +81,96 @@ impl Cell {
     }
 }
 
-struct PositionedCell<'a> {
-    cell: &'a Cell
+trait Automaton<C> where C: Cell {
+    type Neighbors;
+
+    fn generate_neighbors(pos: usize, cells: &Vec<C>) -> Self::Neighbors;
+    fn rule(neighbors: &Self::Neighbors, cell: &C) -> C;
+    fn cells(&self) -> &Vec<C>;
+    fn update(&mut self);
+    fn evolve(&self) -> Vec<C> {
+        self.cells().iter().enumerate().map(|(pos, cell)| {
+            let neighbors = Self::generate_neighbors(pos, self.cells());
+            Self::rule(&neighbors, cell)
+        }).collect()
+    }
 }
 
-impl<'a> PositionedCell<'a> {
-    fn new(cell: &'a Cell) -> PositionedCell<'a> {
-        PositionedCell { cell: cell }
-    }
-    
-    fn is_alive(&self) -> bool {
-        self.cell.is_alive()
-    }
+struct Rule90 {
+    cells: Vec<BasicCell>
 }
 
-type Generation = Vec<Cell>;
-type Neighbors<'a> = Vec<PositionedCell<'a>>;
-type Rule = fn(&Neighbors, &Cell) -> Cell;
-
-fn apply_rule(rule: &Rule, neighbors: &Neighbors, cell: &Cell) -> Cell {
-    rule(neighbors, cell)
-}
-
-struct Automata {
-    cells: Generation,
-    rule: Rule
-}
-
-impl Automata {
-    fn new(width: usize, rule: Rule) -> Self {
-        let cells = (0..width).enumerate().map(|(i, _)| {
-            if i == width / 2 {
-                Cell::alive()
-            } else {
-                Cell::dead()
-            }
-        }).collect::<Generation>();
-        
-        Automata { cells: cells, rule: rule }
-    }
-
-    fn with_cells(&self, cells: Generation) -> Self {
-        Automata { cells: cells, rule: self.rule }
-    }
-    
-    fn evolve(&self) -> Self {
-        self.with_cells(
-            self.cells.iter().enumerate().map(|(i, cell)| {
-                let left = if i >= 1 { i - 1 } else { 0 };
-                let right = if i < self.cells.len() - 1 {
-                    i + 1
+impl Rule90 {
+    fn with_width(w: usize) -> Self {
+        Rule90 {
+            cells: (0..w).map(|i| {
+                if i == w / 2 {
+                    BasicCell::alive()
                 } else {
-                    self.cells.len() - 1
-                };
-                
-                let neighbors = vec![
-                    PositionedCell::new(&self.cells[left]),
-                    PositionedCell::new(&self.cells[right])
-                ];
-                
-                apply_rule(&self.rule, &neighbors, &*cell)
+                    BasicCell::dead()
+                }
             }).collect()
-        )
+        }
     }
 
-    fn render(&self) -> String {
-        self.cells.iter().fold(String::new(), |output, cell| output + cell.render())
+    fn randomize(&mut self) {
+        let mut rng = rand::thread_rng();
+        for c in self.cells.iter_mut() {
+            if rng.gen() { *c = BasicCell::alive() } else { *c = BasicCell::dead() };
+        }
     }
 }
 
-fn rule_30(neighbors: &Neighbors, cell: &Cell) -> Cell {
-    let cell_statuses = neighbors.iter()
-        .map(|n| n.is_alive())
-        .collect::<Vec<bool>>();
-    
-    match (cell_statuses, cell.is_alive()) {
-        (ns, true) => {
-            if ns[0] && ns[1] {
-                Cell::dead()
-            } else if ns[0] && !ns[1] {
-                Cell::dead()
-            } else if !ns[0] && ns[1] {
-                Cell::alive()
-            } else {
-                Cell::alive()
-            }
-        },
-        (ns, false) => {
-            if ns[0] && ns[1] {
-                Cell::dead()
-            } else if ns[0] && !ns[1] {
-                Cell::alive()
-            } else if !ns[0] && ns[1] {
-                Cell::alive()
-            } else {
-                Cell::dead()
-            }
+impl Automaton<BasicCell> for Rule90 {
+    type Neighbors = (bool, bool);
+
+    fn update(&mut self) {
+        self.cells = self.evolve();
+    }
+
+    fn generate_neighbors(pos: usize, cells: &Vec<BasicCell>) -> Self::Neighbors {
+        let n1 = if pos <= 0 { false } else {
+            cells.get(pos - 1)
+                .map(BasicCell::from_cell)
+                .map_or(false, |c| c.is_alive())
+        };
+
+        let n2 = if pos >= cells.len() - 1 { false } else {
+            cells.get(pos + 1)
+                .map(BasicCell::from_cell)
+                .map_or(false, |c| c.is_alive())
+        };
+        (n1, n2)
+    }
+
+    fn rule(neighbors: &Self::Neighbors, cell: &BasicCell) -> BasicCell {
+        match (*neighbors, cell.is_alive()) {
+            // 010
+            ((false, false), true) => BasicCell::dead(),
+            // 000
+            ((false, false), false) => BasicCell::dead(),
+            // 110
+            ((true, false), true) => BasicCell::alive(),
+            // 111
+            ((true, true), true) => BasicCell::dead(),
+            // 001
+            ((false, true), false) => BasicCell::alive(),
+            // 011
+            ((false, true), true) => BasicCell::alive(),
+            // 101
+            ((true, true), false) => BasicCell::dead(),
+            // 100
+            ((true, false), false) => BasicCell::alive()
         }
+    }
+
+    fn cells(&self) -> &Vec<BasicCell> {
+        &self.cells
+    }
+}
+
+impl Render for Rule90 {
+    fn render(&self) -> String {
+        self.cells.iter().fold(String::new(), |a, c| a + &c.render())
     }
 }
