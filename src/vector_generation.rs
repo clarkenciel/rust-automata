@@ -60,8 +60,8 @@ impl<C> Generation<C> for VectorGeneration<C> where C: Cell + Render {
 
     fn neighbors(&self) -> Vec<Self::NeighborData> {
         (0..self.cells.len()).into_iter().map(|i| {
-            let prior = if i > 0 { i - 1 } else { 0 };
-            let posterior = if i < self.cells.len() - 1 { i + 1 } else { self.cells.len() - 1 };
+            let prior = i.checked_sub(1).unwrap_or(0);
+            let posterior = i.checked_add(1).unwrap_or(0);
             match (self.cells.get(prior), self.cells.get(posterior)) {
                 (Some(x), Some(y)) => (x.is_alive(), y.is_alive()),
                 (None, Some(y)) => (false, y.is_alive()),
