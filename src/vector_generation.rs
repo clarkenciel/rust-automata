@@ -62,12 +62,10 @@ impl<C> Generation<C> for VectorGeneration<C> where C: Cell + Render {
         (0..self.cells.len()).into_iter().map(|i| {
             let prior = i.checked_sub(1).unwrap_or(0);
             let posterior = i.checked_add(1).unwrap_or(0);
-            match (self.cells.get(prior), self.cells.get(posterior)) {
-                (Some(x), Some(y)) => (x.is_alive(), y.is_alive()),
-                (None, Some(y)) => (false, y.is_alive()),
-                (Some(x), None) => (x.is_alive(), false),
-                (None, None) => (false, false)
-            }
+            (
+                self.cells.get(prior).map(|x| x.is_alive()).unwrap_or(false),
+                self.cells.get(posterior).map(|y| y.is_alive()).unwrap_or(false)
+            )
         }).collect()
     }
     
