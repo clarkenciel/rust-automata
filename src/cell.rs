@@ -2,14 +2,14 @@ use render::Render;
 
 enum CellState {
     Alive,
-    Dead
+    Dead,
 }
 
 impl Render for CellState {
     fn render(&self) -> String {
         match self {
             &CellState::Alive => "●",
-            &CellState::Dead => " "
+            &CellState::Dead => " ",
         }.to_owned()
     }
 }
@@ -18,13 +18,18 @@ pub trait Cell {
     fn alive() -> Self;
     fn dead() -> Self;
     fn is_alive(&self) -> bool;
-    fn convert<B>(&self) -> B where B: FromCell {
+    fn convert<B>(&self) -> B
+    where
+        B: FromCell,
+    {
         B::from_cell(self)
     }
 }
 
 pub trait FromCell {
-    fn from_cell<T: ?Sized>(cell: &T) -> Self where T: Cell;
+    fn from_cell<T: ?Sized>(cell: &T) -> Self
+    where
+        T: Cell;
 }
 
 pub struct BasicCell {
@@ -32,10 +37,13 @@ pub struct BasicCell {
 }
 
 impl FromCell for BasicCell {
-    fn from_cell<T: ?Sized>(cell: &T) -> Self where T: Cell {
+    fn from_cell<T: ?Sized>(cell: &T) -> Self
+    where
+        T: Cell,
+    {
         match cell.is_alive() {
             true => Self::alive(),
-            false => Self::dead()
+            false => Self::dead(),
         }
     }
 }
@@ -48,11 +56,11 @@ impl Cell for BasicCell {
     fn alive() -> BasicCell {
         BasicCell { state: CellState::Alive }
     }
-    
+
     fn is_alive(&self) -> bool {
         match self.state {
             CellState::Alive => true,
-            CellState::Dead => false
+            CellState::Dead => false,
         }
     }
 }

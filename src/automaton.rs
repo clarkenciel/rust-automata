@@ -7,22 +7,28 @@ use rule::Rule;
 use render::Render;
 
 pub struct Automaton<C, R, G>
-    where C: Cell,
-          R: Rule<G::NeighborData,C>,
-          G: Generation<C>
+where
+    C: Cell,
+    R: Rule<G::NeighborData, C>,
+    G: Generation<C>,
 {
     generation: G,
     rule: R,
-    phantom: PhantomData<C>
+    phantom: PhantomData<C>,
 }
 
-impl<C,R,G> Automaton<C, R, G>
-    where C: Cell,
-          R: Rule<G::NeighborData,C>,
-          G: Generation<C> + IntoIterator<Item=C> + FromIterator<C>
+impl<C, R, G> Automaton<C, R, G>
+where
+    C: Cell,
+    R: Rule<G::NeighborData, C>,
+    G: Generation<C> + IntoIterator<Item = C> + FromIterator<C>,
 {
     pub fn new(rule: R, generation: G) -> Self {
-        Automaton { generation: generation, rule: rule, phantom: PhantomData }
+        Automaton {
+            generation: generation,
+            rule: rule,
+            phantom: PhantomData,
+        }
     }
 
     pub fn evolve(&mut self) {
@@ -30,17 +36,21 @@ impl<C,R,G> Automaton<C, R, G>
     }
 
     fn update(&self) -> G {
-        self.generation.neighbors().into_iter()
+        self.generation
+            .neighbors()
+            .into_iter()
             .zip(self.generation.cells().into_iter())
             .map(|(ns, c)| self.rule.evaluate(&ns, &c))
             .collect()
     }
 }
 
-impl<C,R,G> Render for Automaton<C, R, G>
-    where C: Cell,
-          R: Rule<G::NeighborData,C>,
-          G: Generation<C> + Render {
+impl<C, R, G> Render for Automaton<C, R, G>
+where
+    C: Cell,
+    R: Rule<G::NeighborData, C>,
+    G: Generation<C> + Render,
+{
     fn render(&self) -> String {
         self.generation.render()
     }

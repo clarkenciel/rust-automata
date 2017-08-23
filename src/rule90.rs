@@ -5,7 +5,10 @@ pub struct Rule90;
 
 type NeighborData = (bool, bool);
 
-impl<C> Rule<NeighborData, C> for Rule90 where C: Cell {
+impl<C> Rule<NeighborData, C> for Rule90
+where
+    C: Cell,
+{
     fn evaluate(&self, neighbors: &NeighborData, cell: &C) -> C {
         match (*neighbors, cell.is_alive()) {
             // 010
@@ -23,7 +26,7 @@ impl<C> Rule<NeighborData, C> for Rule90 where C: Cell {
             // 101
             ((true, true), false) => Cell::dead(),
             // 100
-            ((true, false), false) => Cell::alive()
+            ((true, false), false) => Cell::alive(),
         }
     }
 }
